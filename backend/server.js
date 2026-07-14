@@ -26,19 +26,38 @@ app.get("/api/health", (req, res) => {
 
 // Analyze Document Endpoint
 // Uses upload.single("file") to handle binary file uploads, 
-// while also allowing text fields (filename, templateKey) via req.body
+// while also allowing text fields (filename, templateKey, text, inputType) via req.body
 app.post("/api/analyze", upload.single("file"), (req, res) => {
-  const filename = req.body.filename || (req.file ? req.file.originalname : "Uploaded_Contract.pdf");
+  const inputType = req.body.inputType || (req.file ? (req.file.mimetype.startsWith("image/") ? "image" : "document") : "document");
+  const pastedText = req.body.text || "";
+  
+  let filename = req.body.filename || "";
+  if (!filename) {
+    if (req.file) {
+      filename = req.file.originalname;
+    } else if (inputType === "text") {
+      filename = "Pasted_Contract_Text.txt";
+    } else {
+      filename = "Uploaded_Contract.pdf";
+    }
+  }
+  
   let templateKey = req.body.templateKey;
 
-  console.log(`[API] Analyzing document: "${filename}"`);
+  if (inputType === "image") {
+    console.log(`[API] Performing OCR text extraction on image: "${filename}"`);
+  } else if (inputType === "text") {
+    console.log(`[API] Analyzing pasted text: "${filename}" (${pastedText.length} characters)`);
+  } else {
+    console.log(`[API] Analyzing document: "${filename}"`);
+  }
 
-  // If templateKey is not explicitly set, try to guess based on filename keywords
+  // If templateKey is not explicitly set, try to guess based on text content first, then filename keywords
   if (!templateKey) {
-    const nameLower = filename.toLowerCase();
-    if (nameLower.includes("offer") || nameLower.includes("employee") || nameLower.includes("job") || nameLower.includes("work") || nameLower.includes("employment")) {
+    const searchSource = (pastedText + " " + filename).toLowerCase();
+    if (searchSource.includes("offer") || searchSource.includes("employee") || searchSource.includes("job") || searchSource.includes("work") || searchSource.includes("employment")) {
       templateKey = "employment_contract";
-    } else if (nameLower.includes("saas") || nameLower.includes("term") || nameLower.includes("service") || nameLower.includes("cloud")) {
+    } else if (searchSource.includes("saas") || searchSource.includes("term") || searchSource.includes("service") || searchSource.includes("cloud") || searchSource.includes("subscription")) {
       templateKey = "saas_terms";
     } else {
       templateKey = "rent_agreement"; // default fallback
@@ -48,7 +67,7 @@ app.post("/api/analyze", upload.single("file"), (req, res) => {
   // Load appropriate mock analysis dataset
   const analysisResult = mockContracts[templateKey] || mockContracts.rent_agreement;
 
-  // Clone data and override the filename with the actual uploaded filename for realism
+  // Clone data and override the filename with the actual filename for realism
   const responseData = {
     ...analysisResult,
     name: filename

@@ -14,6 +14,7 @@ export default function App() {
   const [theme, setTheme] = useState("dark"); // Default to dark mode for a premium tech vibe
   const [fileMeta, setFileMeta] = useState({ name: "", key: "" });
   const [analysisData, setAnalysisData] = useState(null);
+  const [inputType, setInputType] = useState("document"); // 'document' | 'image' | 'text'
 
   // Sync theme with DOM
   useEffect(() => {
@@ -31,8 +32,9 @@ export default function App() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
-  const handleUploadStart = (filename, templateKey) => {
+  const handleUploadStart = (filename, templateKey, type = "document", fileOrTextContent = null) => {
     setFileMeta({ name: filename, key: templateKey });
+    setInputType(type);
     setScreen("processing");
     setAnalysisData(null);
 
@@ -40,6 +42,13 @@ export default function App() {
     const formData = new FormData();
     formData.append("filename", filename);
     formData.append("templateKey", templateKey);
+    formData.append("inputType", type);
+
+    if (type === "text") {
+      formData.append("text", fileOrTextContent);
+    } else if (fileOrTextContent) {
+      formData.append("file", fileOrTextContent);
+    }
 
     fetch("/api/analyze", {
       method: "POST",
@@ -128,6 +137,7 @@ export default function App() {
             >
               <ProcessingScreen
                 filename={fileMeta.name}
+                inputType={inputType}
                 onComplete={handleUploadComplete}
               />
             </motion.div>
