@@ -6,6 +6,21 @@ node_modules/
 dist/
 **/dist/
 
+# Python Virtual Environments
+venv/
+**/venv/
+ENV/
+env/
+.env/
+
+# Python Cache & Compiled code
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
 # Local env files
 .env
 .env.local

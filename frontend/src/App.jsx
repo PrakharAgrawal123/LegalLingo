@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import { Toaster } from "react-hot-toast";
+
 import Navbar from "./components/Navbar";
-import Hero from "./components/Hero";
-import UploadZone from "./components/UploadZone";
-import ProcessingScreen from "./components/ProcessingScreen";
-import Dashboard from "./components/Dashboard";
-import Features from "./components/Features";
 import Footer from "./components/Footer";
-import { mockContracts } from "./data/mockData";
+import ProtectedRoute from "./protected/ProtectedRoute";
+
+// Pages
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
-  const [screen, setScreen] = useState("landing"); // 'landing' | 'processing' | 'dashboard'
   const [theme, setTheme] = useState("dark"); // Default to dark mode for a premium tech vibe
-  const [fileMeta, setFileMeta] = useState({ name: "", key: "" });
-  const [analysisData, setAnalysisData] = useState(null);
-  const [inputType, setInputType] = useState("document"); // 'document' | 'image' | 'text'
 
   // Sync theme with DOM
   useEffect(() => {
@@ -32,137 +37,64 @@ export default function App() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
-  const handleUploadStart = (filename, templateKey, type = "document", fileOrTextContent = null) => {
-    setFileMeta({ name: filename, key: templateKey });
-    setInputType(type);
-    setScreen("processing");
-    setAnalysisData(null);
-
-    // Call backend API
-    const formData = new FormData();
-    formData.append("filename", filename);
-    formData.append("templateKey", templateKey);
-    formData.append("inputType", type);
-
-    if (type === "text") {
-      formData.append("text", fileOrTextContent);
-    } else if (fileOrTextContent) {
-      formData.append("file", fileOrTextContent);
-    }
-
-    fetch("/api/analyze", {
-      method: "POST",
-      body: formData,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("API error");
-        return res.json();
-      })
-      .then((data) => {
-        setAnalysisData(data);
-      })
-      .catch((err) => {
-        console.warn("Backend API not reachable. Using fallback local data.", err);
-        // Load fallback local mock data
-        setAnalysisData(mockContracts[templateKey] || mockContracts.rent_agreement);
-      });
-  };
-
-  const handleUploadComplete = () => {
-    setScreen("dashboard");
-  };
-
-  const resetApp = () => {
-    setFileMeta({ name: "", key: "" });
-    setAnalysisData(null);
-    setScreen("landing");
-  };
-
-  const onGetStarted = () => {
-    document.getElementById("upload-section")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Select document data based on the API response, falling back to local mock data
-  const documentData = analysisData || mockContracts[fileMeta.key] || mockContracts.rent_agreement;
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "google-oauth-client-id";
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#070b19] text-slate-800 dark:text-slate-200 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden relative">
-      
-      {/* Background ambient glow shapes for visual interest */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-indigo-500/10 to-teal-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <AuthProvider>
+        <Router>
+          <div className="min-h-screen bg-slate-50 dark:bg-[#070b19] text-slate-800 dark:text-slate-200 flex flex-col font-sans transition-colors duration-500 overflow-x-hidden relative">
+            
+            {/* Background ambient glow shapes for visual interest */}
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-indigo-500/10 to-teal-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
-      {/* Sticky Glass Navbar */}
-      <Navbar
-        theme={theme}
-        toggleTheme={toggleTheme}
-        screen={screen}
-        setScreen={setScreen}
-        resetApp={resetApp}
-      />
+            {/* Sticky Glass Navbar */}
+            <Navbar theme={theme} toggleTheme={toggleTheme} />
 
-      {/* Main screens container with exit/enter transitions */}
-      <main className="flex-1 flex flex-col w-full">
-        <AnimatePresence mode="wait">
-          {screen === "landing" && (
-            <motion.div
-              key="landing"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.4 }}
-              className="flex flex-col w-full"
-            >
-              {/* Hero header */}
-              <Hero onGetStarted={onGetStarted} />
-              
-              {/* Upload Contract Dropzone */}
-              <UploadZone
-                onUploadStart={handleUploadStart}
-                onUploadComplete={handleUploadComplete}
-              />
-              
-              {/* Core capabilities & FAQs */}
-              <Features />
-            </motion.div>
-          )}
+            {/* Main Content Area */}
+            <main className="flex-1 flex flex-col w-full">
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-          {screen === "processing" && (
-            <motion.div
-              key="processing"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              transition={{ duration: 0.3 }}
-              className="flex-1 flex items-center justify-center min-h-[60vh] w-full"
-            >
-              <ProcessingScreen
-                filename={fileMeta.name}
-                inputType={inputType}
-                onComplete={handleUploadComplete}
-              />
-            </motion.div>
-          )}
+                {/* Protected Routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </main>
 
-          {screen === "dashboard" && (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -30 }}
-              transition={{ type: "spring", stiffness: 100, damping: 18 }}
-              className="flex-1 w-full"
-            >
-              <Dashboard
-                data={documentData}
-                filename={fileMeta.name || documentData.name}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-
-      {/* Subtle legal disclaimer footer */}
-      <Footer resetApp={resetApp} />
-    </div>
+            {/* Footer */}
+            <Footer />
+          </div>
+        </Router>
+        <Toaster position="top-right" reverseOrder={false} />
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
