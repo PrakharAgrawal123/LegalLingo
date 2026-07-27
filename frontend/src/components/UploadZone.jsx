@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, FileText, Image, AlignLeft, AlertCircle, X } from "lucide-react";
+import Tesseract from "tesseract.js";
 
 export default function UploadZone({ onUploadStart, onUploadComplete }) {
   const [activeTab, setActiveTab] = useState("document"); // 'document' | 'image' | 'text'
@@ -8,6 +9,8 @@ export default function UploadZone({ onUploadStart, onUploadComplete }) {
   const [pastedText, setPastedText] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
   const fileInputRef = useRef(null);
 
   const tabs = [
@@ -138,7 +141,50 @@ export default function UploadZone({ onUploadStart, onUploadComplete }) {
         templateKey = "saas_terms";
       }
 
-      onUploadStart(selectedFile.name, templateKey, activeTab, selectedFile);
+      if (activeTab === "image") {
+        setIsOcrLoading(true);
+        setOcrProgress(0);
+        setErrorMsg("");
+
+        Tesseract.recognize(
+          selectedFile,
+          "eng",
+          {
+            logger: (m) => {
+              if (m.status === "recognizing text") {
+                setOcrProgress(Math.floor(m.progress * 100));
+              }
+            }
+          }
+        )
+        .then(({ data: { text } }) => {
+          setIsOcrLoading(false);
+          if (!text || !text.trim()) {
+            setErrorMsg("No text could be read from this image. Please upload a clearer image.");
+            return;
+          }
+
+          // Guess templateKey based on name or extracted text contents!
+          let guessedTemplateKey = templateKey;
+          const textLower = text.toLowerCase();
+          if (textLower.includes("offer") || textLower.includes("employee") || textLower.includes("job") || textLower.includes("work") || textLower.includes("employment")) {
+            guessedTemplateKey = "employment_contract";
+          } else if (textLower.includes("saas") || textLower.includes("term") || textLower.includes("service") || textLower.includes("cloud") || textLower.includes("subscription")) {
+            guessedTemplateKey = "saas_terms";
+          }
+
+          // Trigger standard analysis passing the parsed text as a "text" input type!
+          onUploadStart(selectedFile.name, guessedTemplateKey, "text", text);
+        })
+        .catch((err) => {
+          console.error("OCR Error:", err);
+          setIsOcrLoading(false);
+          setErrorMsg("Failed to read text from image. Please try copy-pasting the text instead.");
+        });
+      } else {
+        // Document flow: standard file upload
+        onUploadStart(selectedFile.name, templateKey, activeTab, selectedFile);
+      }
     }
   };
 
@@ -321,12 +367,22 @@ export default function UploadZone({ onUploadStart, onUploadComplete }) {
                   </div>
 
                   <motion.button
-                    whileHover={{ scale: 1.02, boxShadow: "0 0 25px rgba(20, 184, 166, 0.45)" }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={!isOcrLoading ? { scale: 1.02, boxShadow: "0 0 25px rgba(20, 184, 166, 0.45)" } : {}}
+                    whileTap={!isOcrLoading ? { scale: 0.98 } : {}}
                     onClick={handleAnalyze}
-                    className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold shadow-lg cursor-pointer text-center"
+                    disabled={isOcrLoading}
+                    className={`w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold shadow-lg text-center ${
+                      isOcrLoading ? "cursor-not-allowed opacity-75" : "cursor-pointer"
+                    }`}
                   >
-                    Analyze Image (with OCR)
+                    {isOcrLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin flex-shrink-0" />
+                        AI OCR: Reading Text ({ocrProgress}%)
+                      </span>
+                    ) : (
+                      "Analyze Image (with OCR)"
+                    )}
                   </motion.button>
                 </div>
               ) : (

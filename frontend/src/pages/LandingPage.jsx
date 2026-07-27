@@ -38,8 +38,13 @@ export default function LandingPage() {
 
     localStorage.setItem("pendingAnalysis", JSON.stringify(pendingData));
     
-    // Navigate to dashboard where processing and analysis happens
-    navigate("/dashboard");
+    // Navigate to dashboard where processing and analysis happens, passing the actual File binary in state
+    navigate("/dashboard", {
+      state: {
+        file: inputType === "text" ? null : fileOrTextContent,
+        text: inputType === "text" ? fileOrTextContent : null
+      }
+    });
   };
 
   const onGetStarted = () => {

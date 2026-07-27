@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import API from "../services/api";
 import {
   FileText,
   AlertTriangle,
@@ -88,7 +89,7 @@ export default function Dashboard({ data, filename }) {
     return "text-red-500 stroke-red-500";
   };
 
-  const handleSendMessage = (messageText) => {
+  const handleSendMessage = async (messageText) => {
     if (!messageText.trim()) return;
 
     const userMessage = { sender: "user", text: messageText };
@@ -96,12 +97,24 @@ export default function Dashboard({ data, filename }) {
     setChatInput("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const res = await API.post("/api/chat", {
+        analysisId: data._id,
+        message: messageText,
+        history: chatMessages
+      });
+
+      setChatMessages((prev) => [
+        ...prev,
+        { sender: "ai", text: res.data.response }
+      ]);
+    } catch (err) {
+      console.warn("Failed to get response from chat API, using fallback logic:", err);
+      
       let aiText = "I see. Let me look at the contract clauses details.";
       const query = messageText.toLowerCase();
 
-      // Simple keyword matching for customized mock responses
+      // Simple keyword matching for customized mock responses (Frontend fallback)
       if (data.type === "Rent Agreement") {
         if (query.includes("leave") || query.includes("break") || query.includes("terminate") || query.includes("early")) {
           aiText = "According to Clause 3 (Security Deposit Forfeiture), early termination will cause you to forfeit your entire security deposit as liquidated damages. I recommend renegotiating this to a flat 1-2 month notice fee.";
@@ -127,8 +140,9 @@ export default function Dashboard({ data, filename }) {
       }
 
       setChatMessages((prev) => [...prev, { sender: "ai", text: aiText }]);
+    } finally {
       setIsTyping(false);
-    }, 1200);
+    }
   };
 
   return (

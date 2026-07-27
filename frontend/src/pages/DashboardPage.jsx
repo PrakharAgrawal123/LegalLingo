@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import ProcessingScreen from "../components/ProcessingScreen";
 import Dashboard from "../components/Dashboard";
 import API from "../services/api";
@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const pendingStr = localStorage.getItem("pendingAnalysis");
@@ -21,7 +22,6 @@ export default function DashboardPage() {
       const parsed = JSON.parse(pendingStr);
       setPending(parsed);
       setScreen("processing");
-      localStorage.removeItem("pendingAnalysis"); // Clear it
     } else if (activeStr) {
       const parsed = JSON.parse(activeStr);
       setAnalysisData(parsed);
@@ -42,7 +42,13 @@ export default function DashboardPage() {
       formData.append("inputType", pending.inputType);
 
       if (pending.inputType === "text") {
-        formData.append("text", pending.text);
+        const textPayload = location.state?.text || pending.text || "";
+        formData.append("text", textPayload);
+      } else {
+        const filePayload = location.state?.file;
+        if (filePayload) {
+          formData.append("file", filePayload);
+        }
       }
 
       const res = await API.post("/api/analyze", formData);
@@ -59,6 +65,7 @@ export default function DashboardPage() {
       localStorage.setItem("activeAnalysis", JSON.stringify(fallback));
     } finally {
       setLoading(false);
+      localStorage.removeItem("pendingAnalysis"); // Clear it only after upload finishes
     }
   };
 
