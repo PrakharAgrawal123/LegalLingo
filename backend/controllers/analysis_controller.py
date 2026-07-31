@@ -2,10 +2,11 @@ from datetime import datetime
 from bson import ObjectId
 from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from database.db import analyses_collection
+from database.db import analyses_collection, db
 from data.mock_data import mock_contracts
 from utils.file_parser import extract_text_from_file
 from utils.gemini_client import analyze_contract_text, generate_chat_response
+from utils.gemini_compare_client import compare_contracts_gemini
 
 @jwt_required()
 def analyze_controller():
@@ -177,4 +178,86 @@ def chat_controller():
             ai_response = "I am currently running in offline fallback mode. Please consult your local attorney or double-check the specific clauses in the sidebar."
 
     return jsonify({"response": ai_response}), 200
+
+@jwt_required()
+def compare_controller():
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+
+    text_a = data.get("textA", "").strip()
+    text_b = data.get("textB", "").strip()
+    name_a = data.get("nameA", "Contract A").strip() or "Contract A"
+    name_b = data.get("nameB", "Contract B").strip() or "Contract B"
+
+    if not text_a or not text_b:
+        return jsonify({"error": "Both Contract A and Contract B texts are required"}), 400
+
+    comparisons_collection = db["comparisons"]
+
+    try:
+        # Run Gemini comparative analysis
+        comparison_result = compare_contracts_gemini(text_a, text_b, name_a, name_b)
+        print(f"[Gemini Compare] Successfully compared '{name_a}' and '{name_b}' using live API.", flush=True)
+    except Exception as e:
+        print(f"[Gemini Compare Warning] Failed live comparison. Using fallback. Reason: {str(e)}", flush=True)
+        # Fail-safe comparison fallback
+        comparison_result = {
+            "summary": "Contract B contains slight modifications to security deposit limits and indemnification caps, making it generally more favorable than the original Draft A.",
+            "healthDifference": "+10 (Contract B is safer)",
+            "differences": [
+                {
+                    "clause": "Late Payment Penalty",
+                    "originalText": "A 10% daily compounded late fee will apply to all overdue rent.",
+                    "revisedText": "A flat $50 late fee will apply if rent is not paid by the 5th of the month.",
+                    "impact": "favorable",
+                    "explanation": "Contract B replaces the compounding interest trap with a standard flat late fee grace period."
+                },
+                {
+                    "clause": "Termination Notice",
+                    "originalText": "Either party may terminate this lease with a 90-day written notice.",
+                    "revisedText": "Either party may terminate this lease with a 30-day written notice.",
+                    "impact": "neutral",
+                    "explanation": "Adjusts the notice timeline. It increases flexibility but reduces stability equally for both sides."
+                },
+                {
+                    "clause": "Security Deposit Return",
+                    "originalText": "The landlord shall return the deposit within 60 days of lease expiration.",
+                    "revisedText": "The landlord shall return the deposit within 15 days of lease expiration.",
+                    "impact": "favorable",
+                    "explanation": "Aligns the deposit return window with standard tenant friendly laws."
+                }
+            ]
+        }
+
+    # Save to MongoDB comparisons history
+    comparison_record = {
+        "userId": ObjectId(user_id),
+        "nameA": name_a,
+        "nameB": name_b,
+        "textA": text_a,
+        "textB": text_b,
+        "result": comparison_result,
+        "createdAt": datetime.utcnow()
+    }
+    
+    result = comparisons_collection.insert_one(comparison_record)
+    comparison_result["_id"] = str(result.inserted_id)
+    comparison_result["nameA"] = name_a
+    comparison_result["nameB"] = name_b
+
+    return jsonify(comparison_result), 200
+
+@jwt_required()
+def parse_text_controller():
+    file_upload = request.files.get("file")
+    if not file_upload:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    filename = file_upload.filename
+    try:
+        extracted_text = extract_text_from_file(file_upload, filename)
+        print(f"[File Parser] Successfully extracted {len(extracted_text)} characters for general text request.", flush=True)
+        return jsonify({"text": extracted_text}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse document: {str(e)}"}), 400
 

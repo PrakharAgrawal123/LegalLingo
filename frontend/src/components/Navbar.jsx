@@ -62,6 +62,7 @@ export default function Navbar({ theme, toggleTheme }) {
 
   const navLinks = [
     { label: "Home", id: "home", action: () => navigate("/") },
+    ...(user ? [{ label: "Compare", id: "compare", action: () => navigate("/compare") }] : []),
     { label: "Features", id: "features", action: () => handleNavClick("features") },
     { label: "FAQ", id: "faq", action: () => handleNavClick("faq") }
   ];
@@ -297,6 +298,13 @@ export default function Navbar({ theme, toggleTheme }) {
                       className="w-full text-left py-2 px-3.5 rounded-xl text-slate-655 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-indigo-600 font-semibold"
                     >
                       Dashboard
+                    </Link>
+                    <Link
+                      to="/compare"
+                      onClick={() => setIsOpen(false)}
+                      className="w-full text-left py-2 px-3.5 rounded-xl text-slate-655 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-indigo-600 font-semibold"
+                    >
+                      Compare Contracts
                     </Link>
                     <Link
                       to="/profile"

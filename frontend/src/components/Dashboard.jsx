@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { jsPDF } from "jspdf";
 import API from "../services/api";
 import {
   FileText,
@@ -15,10 +16,177 @@ import {
   Send,
   HelpCircle,
   ExternalLink,
-  Check
+  Check,
+  Download
 } from "lucide-react";
 
 export default function Dashboard({ data, filename }) {
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Set professional font styles
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(30, 41, 59); // Slate-900
+    
+    // Title
+    doc.text("LegalLingo - Simplified Contract Guide", 14, 20);
+    
+    // Sub-header
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text(`Generated on ${new Date().toLocaleDateString()} | Automated AI Audit Report`, 14, 27);
+    doc.setDrawColor(226, 232, 240); // Slate-200
+    doc.line(14, 30, 196, 30);
+    
+    // Metadata block
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Document Name:", 14, 40);
+    doc.setFont("helvetica", "normal");
+    doc.text(filename || "Contract Document", 52, 40);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Contract Type:", 14, 47);
+    doc.setFont("helvetica", "normal");
+    doc.text(data.type || "Contract Analysis", 48, 47);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Contract Trust Score:", 14, 54);
+    doc.setFont("helvetica", "bold");
+    
+    // Status color
+    if (data.healthScore >= 80) {
+      doc.setTextColor(16, 185, 129); // Green
+    } else if (data.healthScore >= 60) {
+      doc.setTextColor(245, 158, 11); // Amber
+    } else {
+      doc.setTextColor(239, 68, 68); // Red
+    }
+    doc.text(`${data.healthScore} / 100`, 60, 54);
+    
+    // Reset colors
+    doc.setTextColor(30, 41, 59);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, 60, 196, 60);
+    
+    // Executive Summary
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Executive Summary (Plain English Saar)", 14, 70);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105); // Slate-600
+    
+    // Text wrapping helper
+    const summaryLines = doc.splitTextToSize(data.summary || "No summary available.", 182);
+    doc.text(summaryLines, 14, 78);
+    
+    // Calculate vertical offset after summary
+    let y = 78 + (summaryLines.length * 5) + 10;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, y - 5, 196, y - 5);
+    
+    // Simplified Clauses Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Simplified Clause Breakdown", 14, y);
+    y += 10;
+    
+    // Loop through clauses
+    if (data.clauses && data.clauses.length > 0) {
+      data.clauses.forEach((clause) => {
+        // Page break safety check
+        if (y > 240) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        // Color status tag based on severity
+        const statusLabel = clause.status.toUpperCase();
+        if (clause.status === "risky") {
+          doc.setTextColor(239, 68, 68);
+        } else if (clause.status === "caution") {
+          doc.setTextColor(245, 158, 11);
+        } else {
+          doc.setTextColor(16, 185, 129);
+        }
+        
+        doc.text(`[${statusLabel}]  ${clause.title}`, 14, y);
+        y += 6;
+        
+        // Original text block
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text("What the contract says (Mushkil legalese):", 14, y);
+        y += 5;
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(100, 116, 139);
+        const originalLines = doc.splitTextToSize(clause.original || "N/A", 182);
+        doc.text(originalLines, 14, y);
+        y += (originalLines.length * 4) + 4;
+        
+        // Page break safety check
+        if (y > 240) {
+          doc.addPage();
+          y = 20;
+        }
+
+        // Simplified translation block
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(30, 41, 59);
+        doc.text("What it actually means (Aasan Bhasha):", 14, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        const simplifiedLines = doc.splitTextToSize(clause.simplified || "N/A", 182);
+        doc.text(simplifiedLines, 14, y);
+        y += (simplifiedLines.length * 4.5) + 4;
+
+        // Page break safety check
+        if (y > 240) {
+          doc.addPage();
+          y = 20;
+        }
+
+        // Renegotiation suggestions if risky or caution
+        if (clause.status !== "safe" && clause.renegotiate) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(79, 70, 229); // Indigo-600
+          doc.text("How to negotiate this clause (Counter Wording):", 14, y);
+          y += 5;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(79, 70, 229);
+          const negoLines = doc.splitTextToSize(clause.renegotiate, 182);
+          doc.text(negoLines, 14, y);
+          y += (negoLines.length * 4.5) + 4;
+        }
+        
+        // Line break separator
+        y += 2;
+        doc.setDrawColor(241, 245, 249); // Slate-100
+        doc.line(14, y, 196, y);
+        y += 8;
+      });
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text("No specific clauses parsed.", 14, y);
+    }
+    
+    // Save PDF
+    const cleanFilename = filename ? filename.replace(/\.[^/.]+$/, "") : "Simplified_Contract";
+    doc.save(`${cleanFilename}_Simplified_Guide.pdf`);
+  };
+
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedClause, setExpandedClause] = useState(null);
@@ -258,6 +426,14 @@ export default function Dashboard({ data, filename }) {
             <p className="font-inter text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
               {data.summary}
             </p>
+            
+            <button
+              onClick={handleExportPDF}
+              className="w-full mt-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Download size={14} />
+              Export Simplified PDF Guide
+            </button>
           </div>
         </div>
 

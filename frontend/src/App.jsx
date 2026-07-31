@@ -17,6 +17,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
+import ComparePage from "./pages/ComparePage";
 
 export default function App() {
   const [theme, setTheme] = useState("dark"); // Default to dark mode for a premium tech vibe
@@ -67,6 +68,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <DashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/compare"
+                  element={
+                    <ProtectedRoute>
+                      <ComparePage />
                     </ProtectedRoute>
                   }
                 />
