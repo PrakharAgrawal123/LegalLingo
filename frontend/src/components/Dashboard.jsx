@@ -21,12 +21,70 @@ import {
 } from "lucide-react";
 
 export default function Dashboard({ data, filename }) {
-  const handleExportPDF = () => {
+  const [lang, setLang] = useState("en"); // 'en' | 'hi'
+  const handleExportPDF = async () => {
     const doc = new jsPDF();
     
+    let isHindi = lang === "hi";
+    
+    if (isHindi) {
+      try {
+        console.log("Fetching Noto Sans Devanagari font...");
+        const fontUrl = "https://fonts.gstatic.com/s/notosansdevanagari/v17/ea8hdyUzM5A9r1s05n9WFp_F0uV360k.ttf"; 
+        const response = await fetch(fontUrl);
+        if (!response.ok) throw new Error("Font fetch failed");
+        
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Convert arrayBuffer to base64
+        let binary = "";
+        const bytes = new Uint8Array(arrayBuffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const fontBase64 = window.btoa(binary);
+        
+        // Register custom font
+        doc.addFileToVFS("NotoSansDevanagari.ttf", fontBase64);
+        doc.addFont("NotoSansDevanagari.ttf", "NotoSansDevanagari", "normal");
+        doc.setFont("NotoSansDevanagari", "normal");
+      } catch (err) {
+        console.error("Failed to load Devanagari font. Falling back to Helvetica.", err);
+        doc.setFont("helvetica", "normal");
+        isHindi = false; // Fallback to standard
+      }
+    } else {
+      doc.setFont("helvetica", "normal");
+    }
+    
+    const labels = isHindi ? {
+      title: "लीगललिंगो - सरल अनुबंध निर्देशिका",
+      metaDoc: "दस्तावेज़ का नाम:",
+      metaType: "अनुबंध का प्रकार:",
+      metaScore: "अनुबंध विश्वसनीयता स्कोर:",
+      summaryTitle: "अनुबंध का सार (Executive Summary)",
+      breakdownTitle: "सरलीकृत अनुबंध खंडों का विवरण",
+      origText: "अनुबंध की मूल भाषा (Complex Legalese):",
+      simpText: "आसान शब्दों में मतलब (What it means):",
+      negoText: "सहमति सुधारने के सुझाव (How to renegotiate):",
+      genInfo: `दिनांक ${new Date().toLocaleDateString()} | स्वचालित एआई ऑडिट रिपोर्ट`
+    } : {
+      title: "LegalLingo - Simplified Contract Guide",
+      metaDoc: "Document Name:",
+      metaType: "Contract Type:",
+      metaScore: "Contract Trust Score:",
+      summaryTitle: "Executive Summary (Plain English Saar)",
+      breakdownTitle: "Simplified Clause Breakdown",
+      origText: "What the contract says (Mushkil legalese):",
+      simpText: "What it actually means (Aasan Bhasha):",
+      negoText: "How to negotiate this clause (Counter Wording):",
+      genInfo: `Generated on ${new Date().toLocaleDateString()} | Automated AI Audit Report`
+    };
+    
     // Set professional font styles
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFont(isHindi ? "NotoSansDevanagari" : "helvetica", "bold");
+    doc.setFontSize(isHindi ? 18 : 20);
     doc.setTextColor(30, 41, 59); // Slate-900
     
     // Title
@@ -421,18 +479,42 @@ export default function Dashboard({ data, filename }) {
           <div className="glass rounded-3xl p-6 border border-slate-200/50 dark:border-slate-800/80 shadow-md">
             <h3 className="font-outfit font-extrabold text-sm text-slate-800 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Sparkles size={16} className="text-indigo-500 animate-pulse" />
-              Executive Summary
+              {lang === "hi" ? "अनुबंध का सार (Executive Summary)" : "Executive Summary"}
             </h3>
-            <p className="font-inter text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              {data.summary}
+            <p className="font-inter text-sm text-slate-650 dark:text-slate-450 leading-relaxed">
+              {lang === "hi" ? (data.summaryHindi || data.summary) : data.summary}
             </p>
+
+            {/* Language Selection Pills */}
+            <div className="flex p-1 bg-slate-200/50 dark:bg-slate-900/60 border border-slate-200/30 dark:border-slate-800/80 rounded-2xl mt-5">
+              <button
+                onClick={() => setLang("en")}
+                className={`flex-1 py-1.5 text-[11px] font-semibold rounded-xl cursor-pointer transition-all duration-200 ${
+                  lang === "en"
+                    ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                English
+              </button>
+              <button
+                onClick={() => setLang("hi")}
+                className={`flex-1 py-1.5 text-[11px] font-semibold rounded-xl cursor-pointer transition-all duration-200 ${
+                  lang === "hi"
+                    ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                हिन्दी (Hindi)
+              </button>
+            </div>
             
             <button
               onClick={handleExportPDF}
-              className="w-full mt-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="w-full mt-3.5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Download size={14} />
-              Export Simplified PDF Guide
+              {lang === "hi" ? "सरलीकृत हिन्दी PDF डाउनलोड करें" : "Export Simplified PDF Guide"}
             </button>
           </div>
         </div>
@@ -556,7 +638,7 @@ export default function Dashboard({ data, filename }) {
                                 {/* Legalese */}
                                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80">
                                   <span className="font-outfit text-[11px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2">
-                                    Original Legalese Contract Text
+                                    {lang === "hi" ? "अनुबंध की मूल अंग्रेजी भाषा (Legalese)" : "Original Legalese Contract Text"}
                                   </span>
                                   <p className="font-inter text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-mono">
                                     {clause.original}
@@ -567,26 +649,26 @@ export default function Dashboard({ data, filename }) {
                                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 flex flex-col justify-between">
                                   <div>
                                     <span className="font-outfit text-[11px] font-extrabold text-indigo-500 dark:text-teal-400 uppercase tracking-widest block mb-2">
-                                      AI Simplified Translation
+                                      {lang === "hi" ? "आसान शब्दों में मतलब (What it means)" : "AI Simplified Translation"}
                                     </span>
                                     <p className="font-inter text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
-                                      {clause.simplified}
+                                      {lang === "hi" ? (clause.simplifiedHindi || clause.simplified) : clause.simplified}
                                     </p>
                                   </div>
                                   <div className="flex justify-end mt-4 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                                     <button
-                                      onClick={() => handleCopy(clause.id, clause.simplified, "simplified")}
+                                      onClick={() => handleCopy(clause.id, lang === "hi" ? (clause.simplifiedHindi || clause.simplified) : clause.simplified, "simplified")}
                                       className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-indigo-600 dark:hover:text-teal-400 transition-colors cursor-pointer"
                                     >
                                       {copiedId === clause.id ? (
                                         <>
                                           <Check size={12} className="text-emerald-500" />
-                                          Copied!
+                                          {lang === "hi" ? "कॉपी हो गया!" : "Copied!"}
                                         </>
                                       ) : (
                                         <>
                                           <Copy size={12} />
-                                          Copy Translation
+                                          {lang === "hi" ? "अनुवाद कॉपी करें" : "Copy Translation"}
                                         </>
                                       )}
                                     </button>
@@ -597,7 +679,7 @@ export default function Dashboard({ data, filename }) {
                               {/* Details Panel */}
                               <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
                                 <span className="font-outfit text-[11px] font-extrabold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest block mb-2">
-                                  Why it Matters
+                                  {lang === "hi" ? "यह खंड क्यों महत्वपूर्ण है (Why it Matters)" : "Why it Matters"}
                                 </span>
                                 <p className="font-inter text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                                   {clause.explanation}
@@ -605,32 +687,34 @@ export default function Dashboard({ data, filename }) {
                               </div>
 
                               {/* Suggested Renegotiation / Action */}
-                              <div className="p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div className="max-w-xl">
-                                  <span className="font-outfit text-[11px] font-extrabold text-teal-600 dark:text-teal-400 uppercase tracking-widest block mb-1">
-                                    Suggested Renegotiation Strategy
-                                  </span>
-                                  <p className="font-inter text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-semibold">
-                                    {clause.renegotiate}
-                                  </p>
+                              {((clause.status !== "safe") && (clause.renegotiate)) && (
+                                <div className="p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                  <div className="max-w-xl">
+                                    <span className="font-outfit text-[11px] font-extrabold text-teal-600 dark:text-teal-400 uppercase tracking-widest block mb-1">
+                                      {lang === "hi" ? "सुधार के लिए बातचीत का सुझाव (Renegotiation Strategy)" : "Suggested Renegotiation Strategy"}
+                                    </span>
+                                    <p className="font-inter text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-semibold">
+                                      {lang === "hi" ? (clause.renegotiateHindi || clause.renegotiate) : clause.renegotiate}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleCopy(clause.id, lang === "hi" ? (clause.renegotiateHindi || clause.renegotiate) : clause.renegotiate, "renegotiate")}
+                                    className="flex-shrink-0 self-end sm:self-center px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                                  >
+                                    {copiedFixId === clause.id ? (
+                                      <>
+                                        <Check size={12} className="text-emerald-500" />
+                                        {lang === "hi" ? "कॉपी हो गया!" : "Copied Fix!"}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy size={12} />
+                                        {lang === "hi" ? "सुधार सुझाव कॉपी करें" : "Copy Action Text"}
+                                      </>
+                                    )}
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => handleCopy(clause.id, clause.renegotiate, "renegotiate")}
-                                  className="flex-shrink-0 self-end sm:self-center px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
-                                >
-                                  {copiedFixId === clause.id ? (
-                                    <>
-                                      <Check size={12} className="text-emerald-500" />
-                                      Copied Fix!
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy size={12} />
-                                      Copy Action Text
-                                    </>
-                                  )}
-                                </button>
-                              </div>
+                              )}
 
                             </div>
                           </motion.div>

@@ -22,7 +22,7 @@ You are a Senior Legal Counsel, Contracts Expert, and plain-English legal transl
 Your task is to analyze the following contract text (from the file: '{filename}') very carefully and provide a structured audit report in JSON format.
 
 INSTRUCTIONS:
-1. Simplify dense legalese clauses into clear, plain English translations.
+1. Simplify dense legalese clauses into clear, plain English translations and easy-to-understand conversational Hindi translations (Devanagari script).
 2. Identify warning flags and risks. Rate each key clause as one of the following statuses:
    - "risky": Unfavorable, dangerous, or containing hidden penalties/traps/unreasonable obligations for the signing user.
    - "caution": Standard but needs careful consideration, contains liability shifts, or has strict limits.
@@ -30,21 +30,25 @@ INSTRUCTIONS:
 3. Calculate an overall "healthScore" (integer from 0 to 100) representing how fair/safe the contract is (higher is safer, 100 is completely safe).
 4. Extract up to 6 critical clauses (minimum 3). For each clause, provide:
    - "id": unique identifier (e.g. "c1", "c2", "c3")
-   - "title": brief name (e.g. "Security Deposit Forfeiture", "Intellectual Property Assignment", "Termination Notice")
+   - "title": brief name in English (e.g. "Security Deposit Forfeiture", "Intellectual Property Assignment", "Termination Notice")
    - "status": "risky" | "caution" | "safe"
    - "original": the EXACT sentence or paragraph from the contract text (Do not summarize the original text).
    - "simplified": a plain English summary explaining exactly what this means in simple terms.
-   - "explanation": a description of why this clause matters, what rights are being waived, or why they should be careful.
-   - "renegotiate": suggested revised wording, counter-offer, or alternative strategy to negotiate a better deal.
-5. Provide a 2-3 sentence executive "summary" of the overall contract.
-6. Determine the contract "type" (e.g., "Rent Agreement", "Employment Contract", "Non-Disclosure Agreement (NDA)", "SaaS Terms of Service", etc.).
-7. Set "stats" counting the total clauses under "risky", "caution", and "safe".
+   - "simplifiedHindi": a clear, simple translation of what this means in easy-to-understand conversational Hindi (using Devanagari script, e.g. "Owner aapke area me bina bataye nahi ghus sakta. Unhe 24 ghante pehle notice dena hoga."). Avoid high-flown, formal, or Sanskritized Hindi; write in simple, direct language that a common person can easily comprehend.
+   - "explanation": a description of why this clause matters, what rights are being waived, or why they should be careful in English.
+   - "renegotiate": suggested revised wording, counter-offer, or alternative strategy to negotiate a better deal in English.
+   - "renegotiateHindi": suggested renegotiation counter-offer wording or alternative strategy in simple Hindi (Devanagari script).
+5. Provide a 2-3 sentence executive "summary" of the overall contract in plain English.
+6. Provide a 2-3 sentence executive "summaryHindi" of the overall contract in easy, conversational Hindi (Devanagari script).
+7. Determine the contract "type" (e.g., "Rent Agreement", "Employment Contract", "Non-Disclosure Agreement (NDA)", "SaaS Terms of Service", etc.).
+8. Set "stats" counting the total clauses under "risky", "caution", and "safe".
 
 YOUR ENTIRE RESPONSE MUST BE A SINGLE, VALID JSON OBJECT matching this exact structure:
 {{
   "healthScore": 75,
   "type": "Rental Lease Agreement",
   "summary": "...",
+  "summaryHindi": "...",
   "stats": {{
     "risky": 1,
     "caution": 1,
@@ -57,8 +61,10 @@ YOUR ENTIRE RESPONSE MUST BE A SINGLE, VALID JSON OBJECT matching this exact str
       "status": "risky",
       "original": "...",
       "simplified": "...",
+      "simplifiedHindi": "...",
       "explanation": "...",
-      "renegotiate": "..."
+      "renegotiate": "...",
+      "renegotiateHindi": "..."
     }}
   ]
 }}
