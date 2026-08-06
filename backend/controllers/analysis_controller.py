@@ -5,7 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from database.db import analyses_collection, db
 from data.mock_data import mock_contracts
 from utils.file_parser import extract_text_from_file
-from utils.gemini_client import analyze_contract_text, generate_chat_response
+from utils.gemini_client import analyze_contract_text, generate_chat_response, analyze_contract_multimodal
 from utils.gemini_compare_client import compare_contracts_gemini
 
 @jwt_required()
@@ -48,6 +48,22 @@ def analyze_controller():
             print(f"[Gemini AI] Successfully parsed and analyzed contract using live API.", flush=True)
         except Exception as e:
             print(f"[Gemini AI Warning] Failed live parsing. Falling back to mock templates. Reason: {str(e)}", flush=True)
+    elif input_type == "document" and file_upload and filename.lower().endswith(".pdf"):
+        try:
+            print(f"[Gemini Multimodal] Extracted text is empty. Attempting direct PDF upload for OCR...", flush=True)
+            import base64
+            file_upload.seek(0)
+            file_bytes = file_upload.read()
+            file_b64 = base64.b64encode(file_bytes).decode("utf-8")
+            
+            # Call multimodal parser
+            gemini_result = analyze_contract_multimodal(file_b64, "application/pdf", filename)
+            print(f"[Gemini Multimodal] Successfully parsed and analyzed scanned PDF.", flush=True)
+            
+            # Reconstruct text so chat copilot works on it
+            extracted_text = " ".join([c.get("original", "") for c in gemini_result.get("clauses", [])])
+        except Exception as e:
+            print(f"[Gemini Multimodal Warning] Scanned PDF parsing failed. Reason: {str(e)}", flush=True)
 
     if gemini_result:
         # Load details from live AI results
